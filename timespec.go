@@ -74,6 +74,7 @@ func skip(in io.ByteScanner, class charclass) byte {
 
 func expect(in io.ByteScanner, out *[]byte, class charclass) (byte, bool) {
 	c, _ := in.ReadByte()
+
 	if !class(c) {
 		in.UnreadByte()
 		return c, false
@@ -81,6 +82,21 @@ func expect(in io.ByteScanner, out *[]byte, class charclass) (byte, bool) {
 		*out = append(*out, c)
 		return c, true
 	}
+}
+
+func expectBytes(in io.ByteScanner, s []byte) (string, bool) {
+	buf := []byte{}
+
+	for _, expected := range s {
+		c, _ := in.ReadByte()
+		if c != expected {
+			return string(buf), false
+		} else {
+			buf = append(buf, c)
+		}
+	}
+
+	return "", true
 }
 
 func any(in io.ByteScanner, out *[]byte, class charclass) {
@@ -145,38 +161,28 @@ func parseClock(in io.ByteScanner, time *Time) error {
 		return fmt.Errorf("parseClock: invalid number format: %s", buf)
 	}
 
+	if hours > 23 {
+		return fmt.Errorf("parseClock: invalid hours: %d", hours)
+	}
+
 	time.hours = hours
 
-	isWallClock := (buf[0] == '0' || buf[0] == '1') && hours <= 12
-
-	if isWallClock {
-		return parseWallClock(in, time)
-	} else {
-		return parse24HourClock(in, time)
-	}
-}
-
-func parseWallClock(in io.ByteScanner, time *Time) error {
-	c, _ := in.ReadByte()
+	c, _ = in.ReadByte()
 	in.UnreadByte()
 
 	if c == 0 {
-		return fmt.Errorf("parseWallClock: Unexpected EOF")
+		return fmt.Errorf("parseClock: Unexpected EOF")
 	}
 
 	if isdigit(c) || c == ':' {
 		if err := parseMinute(in, time); err != nil {
 			return err
 		}
-	} else {
-		c = skip(in, isspace)
 	}
 
-	if c == 0 {
-		return fmt.Errorf("parseWallClock: Expected 'am' or 'pm', got EOF")
-	}
+	c = skip(in, isspace)
 
-	if strings.IndexByte("aApP", c) != -1 {
+	if c != 0 && strings.IndexByte("aApP", c) != -1 {
 		if err := parseAmPm(in, time); err != nil {
 			return err
 		}
@@ -187,31 +193,12 @@ func parseWallClock(in io.ByteScanner, time *Time) error {
 	return nil
 }
 
-func parse24HourClock(in io.ByteScanner, time *Time) error {
+func parseMinute(in io.ByteScanner, time *Time) error {
 	c, _ := in.ReadByte()
+
 	if c == 0 {
 		return nil
 	}
-	in.UnreadByte()
-
-	if isdigit(c) || c == ':' {
-		if err := parseMinute(in, time); err != nil {
-			return err
-		}
-	}
-
-	parseTimeZone(in, time)
-
-	return nil
-}
-
-func parseMinute(in io.ByteScanner, time *Time) error {
-	c, err := in.ReadByte()
-
-	if err != nil {
-		return nil
-	}
-
 	if c != ':' && !isdigit(c) {
 		return fmt.Errorf("parseMinute: Expected ':' or digit, got '%c'", c)
 	} else if isdigit(c) {
@@ -224,7 +211,6 @@ func parseMinute(in io.ByteScanner, time *Time) error {
 	if c, ok := expectN(2, in, &buf, isdigit); !ok {
 		return fmt.Errorf("parseMinute: Expected digit, got '%c'", c)
 	}
-
 	minutes, err := strconv.Atoi(string(buf))
 	if err != nil {
 		return fmt.Errorf("parseMinute: %s", err)
@@ -273,5 +259,22 @@ func parseAmPm(in io.ByteScanner, time *Time) error {
 	return nil
 }
 
-func parseNoon(in io.ByteScanner, time *Time) error     { return nil }
-func parseMidnight(in io.ByteScanner, time *Time) error { return nil }
+func parseNoon(in io.ByteScanner, time *Time) error {
+	s, ok := expectBytes(in, []byte("noon"))
+	if !ok {
+		return fmt.Errorf("parseNoon: Expected %q, got %q", "noon", s)
+	}
+
+	time.hours = 12
+
+	return nil
+}
+
+func parseMidnight(in io.ByteScanner, time *Time) error {
+	s, ok := expectBytes(in, []byte("midnight"))
+	if !ok {
+		return fmt.Errorf("parseMidnight: Expected %q, got %q", "midnight", s)
+	}
+
+	return nil
+}
