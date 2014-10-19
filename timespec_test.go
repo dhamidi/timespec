@@ -42,3 +42,32 @@ func TestParseTime(t *testing.T) {
 		}
 	}
 }
+
+type testDate struct {
+	input    string
+	expected *Date
+}
+
+func TestParseDate(t *testing.T) {
+	for _, testcase := range []*testDate{
+		{"Feb 02", &Date{month: 2, day: 2}},
+		{"Mar 11, 2010", &Date{month: 3, day: 11, year: 2010}},
+		{"tomorrow", &Date{isTomorrow: true}},
+		{"today", &Date{isToday: true}},
+		{"December 24 , 2015", &Date{month: 12, day: 24, year: 2015}},
+	} {
+		src := bufio.NewReader(bytes.NewBufferString(testcase.input))
+		result := Date{}
+		err := parseDate(src, &result)
+
+		if err != nil {
+			t.Fatalf("parseDate(%q): %s", testcase.input, err)
+		}
+
+		if !reflect.DeepEqual(&result, testcase.expected) {
+			t.Fatalf("parseDate(%q):\n  Expected: %#v\n       Got: %#v\n",
+				testcase.input, testcase.expected, &result)
+		}
+
+	}
+}

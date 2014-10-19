@@ -3,6 +3,7 @@ package timespec
 import (
 	"fmt"
 	"io"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -15,9 +16,11 @@ type Timespec struct {
 }
 
 type Date struct {
-	month time.Month
-	day   int
-	year  int
+	month      time.Month
+	day        int
+	year       int
+	isToday    bool
+	isTomorrow bool
 }
 
 type Time struct {
@@ -41,6 +44,32 @@ type Increment struct {
 	count int
 	unit  IncrementType
 }
+
+var (
+	monthNames = []*regexp.Regexp{
+		regexp.MustCompile("Jan(uary)?"),
+		regexp.MustCompile("Feb(ruary)?"),
+		regexp.MustCompile("Mar(ch)?"),
+		regexp.MustCompile("Apr(il)?"),
+		regexp.MustCompile("May"),
+		regexp.MustCompile("June?"),
+		regexp.MustCompile("July?"),
+		regexp.MustCompile("Aug(ust)?"),
+		regexp.MustCompile("Sep(tember)?"),
+		regexp.MustCompile("Oct(ober)?"),
+		regexp.MustCompile("Nov(ember)?"),
+		regexp.MustCompile("Dec(ember)?"),
+	}
+	dayNames = []*regexp.Regexp{
+		regexp.MustCompile("Mon(day)?"),
+		regexp.MustCompile("Tue(sday)?"),
+		regexp.MustCompile("Wed(nesday)?"),
+		regexp.MustCompile("Thu(rsday)?"),
+		regexp.MustCompile("Fri(day)?"),
+		regexp.MustCompile("Sat(urday)?"),
+		regexp.MustCompile("Sun(day)?"),
+	}
+)
 
 type charclass func(r byte) bool
 
@@ -124,6 +153,109 @@ func expectN(n int, in io.ByteScanner, out *[]byte, class charclass) (byte, bool
 	}
 
 	return c, true
+}
+
+func parseDate(in io.ByteScanner, date *Date) error {
+	c, _ := in.ReadByte()
+	in.UnreadByte()
+
+	if c == 0 {
+		return fmt.Errorf("parseDate: unexpected EOF")
+	}
+
+	buf := []byte{}
+	skip(in, isspace)
+	any(in, &buf, not(isspace))
+
+	if string(buf) == "today" {
+		date.isToday = true
+		return nil
+	}
+
+	if string(buf) == "tomorrow" {
+		date.isTomorrow = true
+		return nil
+	}
+
+	day := findDayOfWeek(buf)
+	if day != -1 {
+		date.day = day
+		return nil
+	}
+
+	month := findMonth(buf)
+	if month == -1 {
+		return fmt.Errorf("parseDate: Invalid month name: %q", buf)
+	}
+
+	date.month = time.Month(month)
+
+	return parseMonth(in, date)
+}
+
+func parseMonth(in io.ByteScanner, date *Date) error {
+	buf := []byte{}
+	skip(in, isspace)
+	c, ok := expectN(2, in, &buf, isdigit)
+	if !ok {
+		return fmt.Errorf("parseMonth: Expected 2 digits, got: %q", buf)
+	}
+
+	day, err := strconv.Atoi(string(buf))
+	if err != nil {
+		return fmt.Errorf("parseMonth: Invalid day numer: %s", buf)
+	}
+
+	date.day = day
+
+	skip(in, isspace)
+	c, _ = in.ReadByte()
+	if c == ',' {
+		return parseYear(in, date)
+	} else {
+		in.UnreadByte()
+	}
+
+	return nil
+}
+
+func parseYear(in io.ByteScanner, date *Date) error {
+	buf := []byte{}
+
+	skip(in, isspace)
+	expectN(4, in, &buf, isdigit)
+
+	year, err := strconv.ParseInt(string(buf), 10, 0)
+	if err != nil {
+		return fmt.Errorf("parseYear: Invalid year format: %q", buf)
+	}
+
+	date.year = int(year)
+
+	return nil
+}
+
+func findInRegexpList(list []*regexp.Regexp, buf []byte) int {
+	for index, re := range list {
+		if re.Match(buf) {
+			return index
+		}
+	}
+
+	return -1
+}
+
+func findMonth(buf []byte) int {
+	index := findInRegexpList(monthNames, buf)
+	if index != -1 {
+		return index + 1
+	} else {
+		return -1
+	}
+}
+
+func findDayOfWeek(buf []byte) int {
+	return findInRegexpList(dayNames, buf)
 }
 
 func parseTime(in io.ByteScanner, time *Time) error {
