@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"reflect"
 	"testing"
+	"time"
 )
 
 type testTimespec struct {
@@ -34,12 +35,14 @@ func TestParseTime(t *testing.T) {
 		err := parseTime(src, &result)
 
 		if err != nil {
-			t.Fatalf("parseTime(%q): %s", testcase.input, err)
+			t.Logf("parseTime(%q): %s", testcase.input, err)
+			t.Fail()
 		}
 
 		if !reflect.DeepEqual(&result, testcase.expected) {
-			t.Fatalf("parseTime(%q):\n  Expected: %#v\n       Got: %#v\n",
+			t.Logf("parseTime(%q):\n  Expected: %#v\n       Got: %#v\n",
 				testcase.input, testcase.expected, &result)
+			t.Fail()
 		}
 	}
 }
@@ -57,12 +60,14 @@ func TestParseDate(t *testing.T) {
 		err := parseDate(src, &result)
 
 		if err != nil {
-			t.Fatalf("parseDate(%q): %s", testcase.input, err)
+			t.Logf("parseDate(%q): %s", testcase.input, err)
+			t.Fail()
 		}
 
 		if !reflect.DeepEqual(&result, testcase.expected) {
-			t.Fatalf("parseDate(%q):\n  Expected: %#v\n       Got: %#v\n",
+			t.Logf("parseDate(%q):\n  Expected: %#v\n       Got: %#v\n",
 				testcase.input, testcase.expected, &result)
+			t.Fail()
 		}
 
 	}
@@ -81,12 +86,14 @@ func TestParseIncrement(t *testing.T) {
 		err := parseIncrement(src, &result)
 
 		if err != nil {
-			t.Fatalf("parseIncrement(%q): %s", testcase.input, err)
+			t.Logf("parseIncrement(%q): %s", testcase.input, err)
+			t.Fail()
 		}
 
 		if !reflect.DeepEqual(&result, testcase.expected) {
-			t.Fatalf("parseIncrement(%q):\n  Expected: %#v\n       Got: %#v\n",
+			t.Logf("parseIncrement(%q):\n  Expected: %#v\n       Got: %#v\n",
 				testcase.input, testcase.expected, &result)
+			t.Fail()
 		}
 
 	}
@@ -135,6 +142,43 @@ func TestParseTimespec(t *testing.T) {
 			t.Fatalf(`parseTimespec(%q):
 Expected: %#v
      Got: %#v`)
+		}
+	}
+}
+
+func TestTimespec_Resolve(t *testing.T) {
+	now := time.Date(2010, 1, 1, 15, 10, 0, 0, time.UTC)
+
+	testcases := []struct {
+		at   Timespec
+		then time.Time
+	}{
+		{
+			then: time.Date(2010, 1, 2, 15, 10, 0, 0, time.UTC),
+			at:   Timespec{isNow: true, increments: 1, unit: IncrementDays},
+		},
+		{
+			then: time.Date(2010, 2, 5, 15, 10, 0, 0, time.UTC),
+			at:   Timespec{isNow: true, increments: 5, unit: IncrementWeeks},
+		},
+		{
+			then: time.Date(2010, 2, 1, 15, 10, 0, 0, time.UTC),
+			at:   Timespec{isNow: true, increments: 1, unit: IncrementMonths},
+		},
+		{
+			then: time.Date(2014, 1, 1, 15, 10, 0, 0, time.UTC),
+			at:   Timespec{isNow: true, increments: 4, unit: IncrementYears},
+		},
+		{
+			then: time.Date(2010, 2, 2, 15, 10, 0, 0, time.UTC),
+			at:   Timespec{year: 2010, month: 2, day: 1, hours: 15, minutes: 10, isTomorrow: true},
+		},
+	}
+
+	for i, testcase := range testcases {
+		if resolved := testcase.at.Resolve(now); !resolved.Equal(testcase.then) {
+			t.Logf("test[%d]: expected %s to equal %s", i, resolved, testcase.then)
+			t.Fail()
 		}
 	}
 }

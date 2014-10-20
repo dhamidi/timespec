@@ -15,11 +15,33 @@ type Timespec struct {
 	year       int
 	hours      int
 	minutes    int
-	timezone   string
 	isNow      bool
 	isTomorrow bool
 	increments int
 	unit       incrementType
+}
+
+func (d *Timespec) Resolve(now time.Time) time.Time {
+	if d.isNow {
+		d.fromTime(now)
+	}
+
+	if d.isTomorrow {
+		d.day = d.day + 1
+	}
+
+	d.addIncrement()
+
+	return time.Date(d.year, d.month, d.day, d.hours, d.minutes, 0, 0, time.UTC)
+}
+
+func (d *Timespec) Time() time.Time {
+	return d.Resolve(time.Now())
+}
+
+func (d *Timespec) fromTime(t time.Time) {
+	d.year, d.month, d.day = t.Date()
+	d.hours, d.minutes = t.Hour(), t.Minute()
 }
 
 func (d *Timespec) isToday() bool {
@@ -30,6 +52,23 @@ func (d *Timespec) setToday() {
 	d.year = 0
 	d.month = 0
 	d.day = 0
+}
+
+func (d *Timespec) addIncrement() {
+	switch d.unit {
+	case IncrementMinutes:
+		d.minutes = d.minutes + d.increments
+	case IncrementHours:
+		d.hours = d.hours + d.increments
+	case IncrementDays:
+		d.day = d.day + d.increments
+	case IncrementWeeks:
+		d.day = d.day + 7*d.increments
+	case IncrementMonths:
+		d.month = d.month + time.Month(d.increments)
+	case IncrementYears:
+		d.year = d.year + d.increments
+	}
 }
 
 type incrementType int
