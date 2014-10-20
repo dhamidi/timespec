@@ -7,30 +7,30 @@ import (
 	"testing"
 )
 
-type testTime struct {
+type testTimespec struct {
 	input    string
-	expected *Time
+	expected *Timespec
 }
 
 func TestParseTime(t *testing.T) {
-	for _, testcase := range []testTime{
-		{"1 pm", &Time{hours: 13}},
-		{"12 pm", &Time{hours: 12}},
-		{"11 pm", &Time{hours: 23}},
-		{"11:59 pm", &Time{hours: 23, minutes: 59}},
-		{"12:10 UTC", &Time{hours: 12, minutes: 10, timezoneName: "UTC"}},
-		{"12:10 utc", &Time{hours: 12, minutes: 10, timezoneName: "UTC"}},
-		{"13 UTC", &Time{hours: 13, timezoneName: "UTC"}},
-		{"1 am", &Time{hours: 1}},
-		{"13:15", &Time{hours: 13, minutes: 15}},
-		{"12 uTC", &Time{hours: 12, timezoneName: "UTC"}},
-		{"1215", &Time{hours: 12, minutes: 15}},
-		{"0512 utC", &Time{hours: 5, minutes: 12, timezoneName: "UTC"}},
-		{"noon", &Time{hours: 12}},
-		{"midnight", &Time{}},
+	for _, testcase := range []testTimespec{
+		{"1 pm", &Timespec{hours: 13}},
+		{"12 pm", &Timespec{hours: 12}},
+		{"11 pm", &Timespec{hours: 23}},
+		{"11:59 pm", &Timespec{hours: 23, minutes: 59}},
+		{"12:10 UTC", &Timespec{hours: 12, minutes: 10}},
+		{"12:10 utc", &Timespec{hours: 12, minutes: 10}},
+		{"13 UTC", &Timespec{hours: 13}},
+		{"1 am", &Timespec{hours: 1}},
+		{"13:15", &Timespec{hours: 13, minutes: 15}},
+		{"12 uTC", &Timespec{hours: 12}},
+		{"1215", &Timespec{hours: 12, minutes: 15}},
+		{"0512 utC", &Timespec{hours: 5, minutes: 12}},
+		{"noon", &Timespec{hours: 12}},
+		{"midnight", &Timespec{}},
 	} {
 		src := bufio.NewReader(bytes.NewBufferString(testcase.input))
-		result := Time{}
+		result := Timespec{}
 		err := parseTime(src, &result)
 
 		if err != nil {
@@ -44,21 +44,16 @@ func TestParseTime(t *testing.T) {
 	}
 }
 
-type testDate struct {
-	input    string
-	expected *Date
-}
-
 func TestParseDate(t *testing.T) {
-	for _, testcase := range []*testDate{
-		{"Feb 02", &Date{month: 2, day: 2}},
-		{"Mar 11, 2010", &Date{month: 3, day: 11, year: 2010}},
-		{"tomorrow", &Date{isTomorrow: true}},
-		{"today", &Date{isToday: true}},
-		{"December 24 , 2015", &Date{month: 12, day: 24, year: 2015}},
+	for _, testcase := range []*testTimespec{
+		{"Feb 02", &Timespec{month: 2, day: 2}},
+		{"Mar 11, 2010", &Timespec{month: 3, day: 11, year: 2010}},
+		{"tomorrow", &Timespec{isTomorrow: true}},
+		{"today", &Timespec{}},
+		{"December 24 , 2015", &Timespec{month: 12, day: 24, year: 2015}},
 	} {
 		src := bufio.NewReader(bytes.NewBufferString(testcase.input))
-		result := Date{}
+		result := Timespec{}
 		err := parseDate(src, &result)
 
 		if err != nil {
@@ -73,21 +68,16 @@ func TestParseDate(t *testing.T) {
 	}
 }
 
-type testIncrement struct {
-	input    string
-	expected *Increment
-}
-
 func TestParseIncrement(t *testing.T) {
-	for _, testcase := range []*testIncrement{
-		{"+1 day", &Increment{1, IncrementDays}},
-		{"+ 1 day", &Increment{1, IncrementDays}},
-		{"next week", &Increment{1, IncrementWeeks}},
-		{"nextday", &Increment{1, IncrementDays}},
-		{"+ 20 months", &Increment{20, IncrementMonths}},
+	for _, testcase := range []*testTimespec{
+		{"+1 day", &Timespec{increments: 1, unit: IncrementDays}},
+		{"+ 1 day", &Timespec{increments: 1, unit: IncrementDays}},
+		{"next week", &Timespec{increments: 1, unit: IncrementWeeks}},
+		{"nextday", &Timespec{increments: 1, unit: IncrementDays}},
+		{"+ 20 months", &Timespec{increments: 20, unit: IncrementMonths}},
 	} {
 		src := bufio.NewReader(bytes.NewBufferString(testcase.input))
-		result := Increment{}
+		result := Timespec{}
 		err := parseIncrement(src, &result)
 
 		if err != nil {
@@ -102,50 +92,39 @@ func TestParseIncrement(t *testing.T) {
 	}
 }
 
-type timespecTest struct {
-	input    string
-	expected *Timespec
-}
-
 func TestParseTimespec(t *testing.T) {
-	for _, testcase := range []*timespecTest{
+	for _, testcase := range []*testTimespec{
 		{"now + 1 day", &Timespec{
-			increment: &Increment{1, IncrementDays},
-			time:      &Time{isNow: true},
-			date:      &Date{},
+			increments: 1,
+			unit:       IncrementDays,
+			isNow:      true,
 		}},
-		{"now", &Timespec{
-			increment: &Increment{},
-			time:      &Time{isNow: true},
-			date:      &Date{},
-		}},
+		{"now", &Timespec{isNow: true}},
 		{"12:11", &Timespec{
-			increment: &Increment{},
-			time:      &Time{hours: 12, minutes: 11},
-			date:      &Date{isToday: true},
+			hours:   12,
+			minutes: 11,
 		}},
 		{"10 am next week", &Timespec{
-			increment: &Increment{1, IncrementWeeks},
-			time:      &Time{hours: 10},
-			date:      &Date{isToday: true},
+			increments: 1,
+			unit:       IncrementWeeks,
+			hours:      10,
 		}},
 		{"14:00 Feb 12, 2015 + 3 week", &Timespec{
-			increment: &Increment{3, IncrementWeeks},
-			time:      &Time{hours: 14},
-			date:      &Date{month: 2, day: 12, year: 2015},
+			increments: 3,
+			unit:       IncrementWeeks,
+			hours:      14,
+			month:      2,
+			day:        12,
+			year:       2015,
 		}},
 		{"9:00 UTCnextweek", &Timespec{
-			increment: &Increment{1, IncrementWeeks},
-			time:      &Time{hours: 9, timezoneName: "UTC"},
-			date:      &Date{isToday: true},
+			unit:       IncrementWeeks,
+			increments: 1,
+			hours:      9,
 		}},
 	} {
 		src := bufio.NewReader(bytes.NewBufferString(testcase.input))
-		result := Timespec{
-			increment: &Increment{},
-			time:      &Time{},
-			date:      &Date{},
-		}
+		result := Timespec{}
 		err := parseTimespec(src, &result)
 
 		if err != nil {
@@ -154,16 +133,8 @@ func TestParseTimespec(t *testing.T) {
 
 		if !reflect.DeepEqual(&result, testcase.expected) {
 			t.Fatalf(`parseTimespec(%q):
-Expected:
-time: %#v,
-date: %#v,
-incr: %#v
-
-Got:
-time: %#v,
-date: %#v,
-incr: %#v
-`, testcase.input, testcase.expected.time, testcase.expected.date, testcase.expected.increment, result.time, result.date, result.increment)
+Expected: %#v
+     Got: %#v`)
 		}
 	}
 }

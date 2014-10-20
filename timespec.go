@@ -10,45 +10,38 @@ import (
 )
 
 type Timespec struct {
-	time      *Time
-	date      *Date
-	increment *Increment
-}
-
-type Date struct {
 	month      time.Month
 	day        int
 	year       int
-	isToday    bool
+	hours      int
+	minutes    int
+	timezone   string
+	isNow      bool
 	isTomorrow bool
+	increments int
+	unit       incrementType
 }
 
-func (d *Date) IsNull() bool {
+func (d *Timespec) isToday() bool {
 	return d.year == 0 && d.month == 0 && d.day == 0
 }
 
-type Time struct {
-	hours        int
-	minutes      int
-	timezoneName string
-	isNow        bool
+func (d *Timespec) setToday() {
+	d.year = 0
+	d.month = 0
+	d.day = 0
 }
 
-type IncrementType int
+type incrementType int
 
 const (
-	IncrementMinutes IncrementType = iota
+	IncrementMinutes incrementType = iota
 	IncrementHours
 	IncrementDays
 	IncrementWeeks
 	IncrementMonths
 	IncrementYears
 )
-
-type Increment struct {
-	count int
-	unit  IncrementType
-}
 
 var (
 	monthNames = []*regexp.Regexp{
@@ -179,31 +172,31 @@ func parseTimespec(in io.ByteScanner, spec *Timespec) error {
 			return fmt.Errorf("parseTimespec: expected %q, got %q", "now", actual)
 		}
 
-		spec.time.isNow = true
-		return parseIncrement(in, spec.increment)
+		spec.isNow = true
+		return parseIncrement(in, spec)
 	}
 
-	err := parseTime(in, spec.time)
+	err := parseTime(in, spec)
 	if err != nil {
 		return err
 	}
 
-	err = parseDate(in, spec.date)
+	err = parseDate(in, spec)
 	if err != nil {
-		spec.date = &Date{}
+		spec.year = 0
+		spec.month = 0
+		spec.day = 0
 	}
 
-	err = parseIncrement(in, spec.increment)
+	err = parseIncrement(in, spec)
 	if err != nil {
-		spec.increment = &Increment{}
+		spec.increments = 0
 	}
-
-	spec.date.isToday = spec.date.IsNull()
 
 	return nil
 }
 
-func parseIncrement(in io.ByteScanner, incr *Increment) error {
+func parseIncrement(in io.ByteScanner, spec *Timespec) error {
 	skip(in, isspace)
 	c, _ := in.ReadByte()
 
@@ -218,7 +211,7 @@ func parseIncrement(in io.ByteScanner, incr *Increment) error {
 			return fmt.Errorf("parseIncrement: Expected \"next\", got %q", actual)
 		}
 
-		incr.count = 1
+		spec.increments = 1
 	} else if c == '+' {
 		buf := []byte{}
 		skip(in, isspace)
@@ -228,7 +221,7 @@ func parseIncrement(in io.ByteScanner, incr *Increment) error {
 			return fmt.Errorf("parseIncrement: %s", err)
 		}
 
-		incr.count = int(count)
+		spec.increments = int(count)
 	} else {
 		return fmt.Errorf("parseIncrement: Expected '+', got '%c'", c)
 	}
@@ -242,7 +235,7 @@ func parseIncrement(in io.ByteScanner, incr *Increment) error {
 		return fmt.Errorf("parsePeriod: Invalid period: %q", buf)
 	}
 
-	incr.unit = IncrementType(period)
+	spec.unit = incrementType(period)
 
 	return nil
 }
@@ -251,7 +244,7 @@ func findPeriod(buf []byte) int {
 	return findInRegexpList(periodNames, buf)
 }
 
-func parseDate(in io.ByteScanner, date *Date) error {
+func parseDate(in io.ByteScanner, spec *Timespec) error {
 	c, _ := in.ReadByte()
 	in.UnreadByte()
 
@@ -268,18 +261,18 @@ func parseDate(in io.ByteScanner, date *Date) error {
 	any(in, &buf, nospace)
 
 	if string(buf) == "today" {
-		date.isToday = true
+		spec.setToday()
 		return nil
 	}
 
 	if string(buf) == "tomorrow" {
-		date.isTomorrow = true
+		spec.isTomorrow = true
 		return nil
 	}
 
 	day := findDayOfWeek(buf)
 	if day != -1 {
-		date.day = day
+		spec.day = day
 		return nil
 	}
 
@@ -288,12 +281,12 @@ func parseDate(in io.ByteScanner, date *Date) error {
 		return fmt.Errorf("parseDate: Invalid month name: %q", buf)
 	}
 
-	date.month = time.Month(month)
+	spec.month = time.Month(month)
 
-	return parseMonth(in, date)
+	return parseMonth(in, spec)
 }
 
-func parseMonth(in io.ByteScanner, date *Date) error {
+func parseMonth(in io.ByteScanner, spec *Timespec) error {
 	buf := []byte{}
 	skip(in, isspace)
 	c, ok := expectN(2, in, &buf, isdigit)
@@ -306,12 +299,12 @@ func parseMonth(in io.ByteScanner, date *Date) error {
 		return fmt.Errorf("parseMonth: Invalid day numer: %s", buf)
 	}
 
-	date.day = day
+	spec.day = day
 
 	skip(in, isspace)
 	c, _ = in.ReadByte()
 	if c == ',' {
-		return parseYear(in, date)
+		return parseYear(in, spec)
 	} else {
 		in.UnreadByte()
 	}
@@ -319,7 +312,7 @@ func parseMonth(in io.ByteScanner, date *Date) error {
 	return nil
 }
 
-func parseYear(in io.ByteScanner, date *Date) error {
+func parseYear(in io.ByteScanner, spec *Timespec) error {
 	buf := []byte{}
 
 	skip(in, isspace)
@@ -330,7 +323,7 @@ func parseYear(in io.ByteScanner, date *Date) error {
 		return fmt.Errorf("parseYear: Invalid year format: %q", buf)
 	}
 
-	date.year = int(year)
+	spec.year = int(year)
 
 	return nil
 }
@@ -358,22 +351,22 @@ func findDayOfWeek(buf []byte) int {
 	return findInRegexpList(dayNames, buf)
 }
 
-func parseTime(in io.ByteScanner, time *Time) error {
+func parseTime(in io.ByteScanner, spec *Timespec) error {
 	c, _ := in.ReadByte()
 	in.UnreadByte()
 
 	if isdigit(c) {
-		return parseClock(in, time)
+		return parseClock(in, spec)
 	} else if c == 'n' {
-		return parseNoon(in, time)
+		return parseNoon(in, spec)
 	} else if c == 'm' {
-		return parseMidnight(in, time)
+		return parseMidnight(in, spec)
 	}
 
 	return fmt.Errorf("parseTime: Unexpected character %c", c)
 }
 
-func parseClock(in io.ByteScanner, time *Time) error {
+func parseClock(in io.ByteScanner, spec *Timespec) error {
 	c, _ := in.ReadByte()
 	buf := []byte{c}
 
@@ -397,7 +390,7 @@ func parseClock(in io.ByteScanner, time *Time) error {
 		return fmt.Errorf("parseClock: invalid hours: %d", hours)
 	}
 
-	time.hours = hours
+	spec.hours = hours
 
 	c, _ = in.ReadByte()
 	in.UnreadByte()
@@ -407,7 +400,7 @@ func parseClock(in io.ByteScanner, time *Time) error {
 	}
 
 	if isdigit(c) || c == ':' {
-		if err := parseMinute(in, time); err != nil {
+		if err := parseMinute(in, spec); err != nil {
 			return err
 		}
 	}
@@ -415,17 +408,17 @@ func parseClock(in io.ByteScanner, time *Time) error {
 	c = skip(in, isspace)
 
 	if c != 0 && strings.IndexByte("aApP", c) != -1 {
-		if err := parseAmPm(in, time); err != nil {
+		if err := parseAmPm(in, spec); err != nil {
 			return err
 		}
 	}
 
-	parseTimeZone(in, time)
+	parseTimeZone(in, spec)
 
 	return nil
 }
 
-func parseMinute(in io.ByteScanner, time *Time) error {
+func parseMinute(in io.ByteScanner, spec *Timespec) error {
 	c, _ := in.ReadByte()
 
 	if c == 0 {
@@ -453,12 +446,12 @@ func parseMinute(in io.ByteScanner, time *Time) error {
 		return fmt.Errorf("parseMinute: Invalid minutes: %d", minutes)
 	}
 
-	time.minutes = minutes
+	spec.minutes = minutes
 
 	return nil
 }
 
-func parseTimeZone(in io.ByteScanner, time *Time) error {
+func parseTimeZone(in io.ByteScanner, spec *Timespec) error {
 	c := skip(in, isspace)
 	// only UTC (case insensitive) is a valid timezone
 	if c != 'u' && c != 'U' {
@@ -475,12 +468,10 @@ func parseTimeZone(in io.ByteScanner, time *Time) error {
 		return fmt.Errorf("parseTimeZone: Invalid timezone: %q", buf)
 	}
 
-	time.timezoneName = timezone
-
 	return nil
 }
 
-func parseAmPm(in io.ByteScanner, time *Time) error {
+func parseAmPm(in io.ByteScanner, spec *Timespec) error {
 	c, err := in.ReadByte()
 	buf := []byte{c}
 
@@ -496,24 +487,24 @@ func parseAmPm(in io.ByteScanner, time *Time) error {
 	}
 
 	if strings.ToLower(string(buf)) == "pm" {
-		time.hours = (time.hours % 12) + 12
+		spec.hours = (spec.hours % 12) + 12
 	}
 
 	return nil
 }
 
-func parseNoon(in io.ByteScanner, time *Time) error {
+func parseNoon(in io.ByteScanner, spec *Timespec) error {
 	s, ok := expectBytes(in, []byte("noon"))
 	if !ok {
 		return fmt.Errorf("parseNoon: Expected %q, got %q", "noon", s)
 	}
 
-	time.hours = 12
+	spec.hours = 12
 
 	return nil
 }
 
-func parseMidnight(in io.ByteScanner, time *Time) error {
+func parseMidnight(in io.ByteScanner, spec *Timespec) error {
 	s, ok := expectBytes(in, []byte("midnight"))
 	if !ok {
 		return fmt.Errorf("parseMidnight: Expected %q, got %q", "midnight", s)
