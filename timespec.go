@@ -30,7 +30,7 @@ func (d *Timespec) Resolve(now time.Time) time.Time {
 		d.day = d.day + 1
 	}
 
-	d.addIncrement()
+	d.addincrement()
 
 	return time.Date(d.year, d.month, d.day, d.hours, d.minutes, 0, 0, time.UTC)
 }
@@ -54,19 +54,19 @@ func (d *Timespec) setToday() {
 	d.day = 0
 }
 
-func (d *Timespec) addIncrement() {
+func (d *Timespec) addincrement() {
 	switch d.unit {
-	case IncrementMinutes:
+	case incrementMinutes:
 		d.minutes = d.minutes + d.increments
-	case IncrementHours:
+	case incrementHours:
 		d.hours = d.hours + d.increments
-	case IncrementDays:
+	case incrementDays:
 		d.day = d.day + d.increments
-	case IncrementWeeks:
+	case incrementWeeks:
 		d.day = d.day + 7*d.increments
-	case IncrementMonths:
+	case incrementMonths:
 		d.month = d.month + time.Month(d.increments)
-	case IncrementYears:
+	case incrementYears:
 		d.year = d.year + d.increments
 	}
 }
@@ -74,12 +74,12 @@ func (d *Timespec) addIncrement() {
 type incrementType int
 
 const (
-	IncrementMinutes incrementType = iota
-	IncrementHours
-	IncrementDays
-	IncrementWeeks
-	IncrementMonths
-	IncrementYears
+	incrementMinutes incrementType = iota
+	incrementHours
+	incrementDays
+	incrementWeeks
+	incrementMonths
+	incrementYears
 )
 
 var (
@@ -223,7 +223,7 @@ func parseTimespec(in io.ByteScanner, spec *Timespec) error {
 		}
 
 		spec.isNow = true
-		return parseIncrement(in, spec)
+		return parseincrement(in, spec)
 	}
 
 	err := parseTime(in, spec)
@@ -238,7 +238,7 @@ func parseTimespec(in io.ByteScanner, spec *Timespec) error {
 		spec.day = 0
 	}
 
-	err = parseIncrement(in, spec)
+	err = parseincrement(in, spec)
 	if err != nil {
 		spec.increments = 0
 	}
@@ -246,7 +246,7 @@ func parseTimespec(in io.ByteScanner, spec *Timespec) error {
 	return nil
 }
 
-func parseIncrement(in io.ByteScanner, spec *Timespec) error {
+func parseincrement(in io.ByteScanner, spec *Timespec) error {
 	skip(in, isspace)
 	c, _ := in.ReadByte()
 
@@ -258,7 +258,7 @@ func parseIncrement(in io.ByteScanner, spec *Timespec) error {
 		in.UnreadByte()
 		actual, ok := expectBytes(in, []byte("next"))
 		if !ok {
-			return fmt.Errorf("parseIncrement: Expected \"next\", got %q", actual)
+			return fmt.Errorf("parseincrement: Expected \"next\", got %q", actual)
 		}
 
 		spec.increments = 1
@@ -268,12 +268,12 @@ func parseIncrement(in io.ByteScanner, spec *Timespec) error {
 		any(in, &buf, isdigit)
 		count, err := strconv.ParseInt(string(buf), 10, 0)
 		if err != nil {
-			return fmt.Errorf("parseIncrement: %s", err)
+			return fmt.Errorf("parseincrement: %s", err)
 		}
 
 		spec.increments = int(count)
 	} else {
-		return fmt.Errorf("parseIncrement: Expected '+', got '%c'", c)
+		return fmt.Errorf("parseincrement: Expected '+', got '%c'", c)
 	}
 
 	buf := []byte{}

@@ -73,25 +73,25 @@ func TestParseDate(t *testing.T) {
 	}
 }
 
-func TestParseIncrement(t *testing.T) {
+func TestParseincrement(t *testing.T) {
 	for _, testcase := range []*testTimespec{
-		{"+1 day", &Timespec{increments: 1, unit: IncrementDays}},
-		{"+ 1 day", &Timespec{increments: 1, unit: IncrementDays}},
-		{"next week", &Timespec{increments: 1, unit: IncrementWeeks}},
-		{"nextday", &Timespec{increments: 1, unit: IncrementDays}},
-		{"+ 20 months", &Timespec{increments: 20, unit: IncrementMonths}},
+		{"+1 day", &Timespec{increments: 1, unit: incrementDays}},
+		{"+ 1 day", &Timespec{increments: 1, unit: incrementDays}},
+		{"next week", &Timespec{increments: 1, unit: incrementWeeks}},
+		{"nextday", &Timespec{increments: 1, unit: incrementDays}},
+		{"+ 20 months", &Timespec{increments: 20, unit: incrementMonths}},
 	} {
 		src := bufio.NewReader(bytes.NewBufferString(testcase.input))
 		result := Timespec{}
-		err := parseIncrement(src, &result)
+		err := parseincrement(src, &result)
 
 		if err != nil {
-			t.Logf("parseIncrement(%q): %s", testcase.input, err)
+			t.Logf("parseincrement(%q): %s", testcase.input, err)
 			t.Fail()
 		}
 
 		if !reflect.DeepEqual(&result, testcase.expected) {
-			t.Logf("parseIncrement(%q):\n  Expected: %#v\n       Got: %#v\n",
+			t.Logf("parseincrement(%q):\n  Expected: %#v\n       Got: %#v\n",
 				testcase.input, testcase.expected, &result)
 			t.Fail()
 		}
@@ -103,7 +103,7 @@ func TestParseTimespec(t *testing.T) {
 	for _, testcase := range []*testTimespec{
 		{"now + 1 day", &Timespec{
 			increments: 1,
-			unit:       IncrementDays,
+			unit:       incrementDays,
 			isNow:      true,
 		}},
 		{"now", &Timespec{isNow: true}},
@@ -113,19 +113,19 @@ func TestParseTimespec(t *testing.T) {
 		}},
 		{"10 am next week", &Timespec{
 			increments: 1,
-			unit:       IncrementWeeks,
+			unit:       incrementWeeks,
 			hours:      10,
 		}},
 		{"14:00 Feb 12, 2015 + 3 week", &Timespec{
 			increments: 3,
-			unit:       IncrementWeeks,
+			unit:       incrementWeeks,
 			hours:      14,
 			month:      2,
 			day:        12,
 			year:       2015,
 		}},
 		{"9:00 UTCnextweek", &Timespec{
-			unit:       IncrementWeeks,
+			unit:       incrementWeeks,
 			increments: 1,
 			hours:      9,
 		}},
@@ -155,19 +155,19 @@ func TestTimespec_Resolve(t *testing.T) {
 	}{
 		{
 			then: time.Date(2010, 1, 2, 15, 10, 0, 0, time.UTC),
-			at:   Timespec{isNow: true, increments: 1, unit: IncrementDays},
+			at:   Timespec{isNow: true, increments: 1, unit: incrementDays},
 		},
 		{
 			then: time.Date(2010, 2, 5, 15, 10, 0, 0, time.UTC),
-			at:   Timespec{isNow: true, increments: 5, unit: IncrementWeeks},
+			at:   Timespec{isNow: true, increments: 5, unit: incrementWeeks},
 		},
 		{
 			then: time.Date(2010, 2, 1, 15, 10, 0, 0, time.UTC),
-			at:   Timespec{isNow: true, increments: 1, unit: IncrementMonths},
+			at:   Timespec{isNow: true, increments: 1, unit: incrementMonths},
 		},
 		{
 			then: time.Date(2014, 1, 1, 15, 10, 0, 0, time.UTC),
-			at:   Timespec{isNow: true, increments: 4, unit: IncrementYears},
+			at:   Timespec{isNow: true, increments: 4, unit: incrementYears},
 		},
 		{
 			then: time.Date(2010, 2, 2, 15, 10, 0, 0, time.UTC),
