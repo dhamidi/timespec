@@ -94,10 +94,8 @@ func isspace(r byte) bool {
 	return r == ' ' || r == '\n' || r == '\t'
 }
 
-func not(class charclass) charclass {
-	return func(r byte) bool {
-		return !class(r)
-	}
+func nospace(r byte) bool {
+	return !isspace(r)
 }
 
 func skip(in io.ByteScanner, class charclass) byte {
@@ -237,7 +235,7 @@ func parseIncrement(in io.ByteScanner, incr *Increment) error {
 
 	buf := []byte{}
 	skip(in, isspace)
-	any(in, &buf, not(isspace))
+	any(in, &buf, nospace)
 
 	period := findPeriod(buf)
 	if period == -1 {
@@ -267,7 +265,7 @@ func parseDate(in io.ByteScanner, date *Date) error {
 		return nil
 	}
 
-	any(in, &buf, not(isspace))
+	any(in, &buf, nospace)
 
 	if string(buf) == "today" {
 		date.isToday = true
@@ -469,7 +467,7 @@ func parseTimeZone(in io.ByteScanner, time *Time) error {
 
 	buf := []byte{}
 
-	expectN(3, in, &buf, not(isspace))
+	expectN(3, in, &buf, nospace)
 
 	timezone := strings.ToUpper(string(buf))
 
