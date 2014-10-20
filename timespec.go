@@ -105,6 +105,18 @@ func skip(in io.ByteScanner, class charclass) byte {
 	return c
 }
 
+func peek(in io.ByteScanner) byte {
+	c, err := in.ReadByte()
+
+	if err != io.EOF {
+		panic(err)
+	}
+
+	in.UnreadByte()
+
+	return c
+}
+
 func expect(in io.ByteScanner, out *[]byte, class charclass) (byte, bool) {
 	c, _ := in.ReadByte()
 
@@ -160,8 +172,7 @@ func expectN(n int, in io.ByteScanner, out *[]byte, class charclass) (byte, bool
 }
 
 func parseTimespec(in io.ByteScanner, spec *Timespec) error {
-	c, _ := in.ReadByte()
-	in.UnreadByte()
+	c := peek(in)
 	if c == 0 {
 		return fmt.Errorf("parseTimespec: unexpected EOF")
 	}
@@ -245,8 +256,7 @@ func findPeriod(buf []byte) int {
 }
 
 func parseDate(in io.ByteScanner, spec *Timespec) error {
-	c, _ := in.ReadByte()
-	in.UnreadByte()
+	c := peek(in)
 
 	if c == 0 {
 		return fmt.Errorf("parseDate: unexpected EOF")
@@ -352,8 +362,7 @@ func findDayOfWeek(buf []byte) int {
 }
 
 func parseTime(in io.ByteScanner, spec *Timespec) error {
-	c, _ := in.ReadByte()
-	in.UnreadByte()
+	c := peek(in)
 
 	if isdigit(c) {
 		return parseClock(in, spec)
@@ -392,8 +401,7 @@ func parseClock(in io.ByteScanner, spec *Timespec) error {
 
 	spec.hours = hours
 
-	c, _ = in.ReadByte()
-	in.UnreadByte()
+	c = peek(in)
 
 	if c == 0 {
 		return fmt.Errorf("parseClock: Unexpected EOF")
@@ -453,6 +461,7 @@ func parseMinute(in io.ByteScanner, spec *Timespec) error {
 
 func parseTimeZone(in io.ByteScanner, spec *Timespec) error {
 	c := skip(in, isspace)
+
 	// only UTC (case insensitive) is a valid timezone
 	if c != 'u' && c != 'U' {
 		return nil
