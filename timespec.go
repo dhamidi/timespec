@@ -426,13 +426,13 @@ func expectN(n int, in io.ByteScanner, out *[]byte, class charclass) (byte, bool
 func parseTimespec(in io.ByteScanner, spec *Timespec) error {
 	c := peek(in)
 	if c == 0 {
-		return fmt.Errorf("parseTimespec: unexpected EOF")
+		return fmt.Errorf("timespec: unexpected EOF")
 	}
 
 	if c == 'n' {
 		actual, ok := expectBytes(in, []byte("now"))
 		if !ok {
-			return fmt.Errorf("parseTimespec: expected %q, got %q", "now", actual)
+			return fmt.Errorf("timespec: expected %q, got %q", "now", actual)
 		}
 
 		spec.isNow = true
@@ -471,7 +471,7 @@ func parseincrement(in io.ByteScanner, spec *Timespec) error {
 		in.UnreadByte()
 		actual, ok := expectBytes(in, []byte("next"))
 		if !ok {
-			return fmt.Errorf("parseincrement: Expected \"next\", got %q", actual)
+			return fmt.Errorf("increment: expected \"next\", got %q", actual)
 		}
 
 		spec.increments = 1
@@ -481,12 +481,12 @@ func parseincrement(in io.ByteScanner, spec *Timespec) error {
 		any(in, &buf, isdigit)
 		count, err := strconv.ParseInt(string(buf), 10, 0)
 		if err != nil {
-			return fmt.Errorf("parseincrement: %s", err)
+			return fmt.Errorf("increment: %s", err)
 		}
 
 		spec.increments = int(count)
 	} else {
-		return fmt.Errorf("parseincrement: Expected '+', got '%c'", c)
+		return fmt.Errorf("increment: expected '+', got '%c'", c)
 	}
 
 	buf := []byte{}
@@ -495,7 +495,7 @@ func parseincrement(in io.ByteScanner, spec *Timespec) error {
 
 	period := findPeriod(buf)
 	if period == -1 {
-		return fmt.Errorf("parsePeriod: Invalid period: %q", buf)
+		return fmt.Errorf("period: invalid period: %q", buf)
 	}
 
 	spec.unit = incrementType(period)
@@ -511,7 +511,7 @@ func parseDate(in io.ByteScanner, spec *Timespec) error {
 	c := peek(in)
 
 	if c == 0 {
-		return fmt.Errorf("parseDate: unexpected EOF")
+		return fmt.Errorf("date: unexpected EOF")
 	}
 
 	buf := []byte{}
@@ -540,7 +540,7 @@ func parseDate(in io.ByteScanner, spec *Timespec) error {
 
 	month := findMonth(buf)
 	if month == -1 {
-		return fmt.Errorf("parseDate: Invalid month name: %q", buf)
+		return fmt.Errorf("date: invalid month name: %q", buf)
 	}
 
 	spec.month = time.Month(month)
@@ -553,12 +553,12 @@ func parseMonth(in io.ByteScanner, spec *Timespec) error {
 	skip(in, isspace)
 	c, ok := expectN(2, in, &buf, isdigit)
 	if !ok {
-		return fmt.Errorf("parseMonth: Expected 2 digits, got: %q", buf)
+		return fmt.Errorf("month: expected 2 digits, got: %q", buf)
 	}
 
 	day, err := strconv.Atoi(string(buf))
 	if err != nil {
-		return fmt.Errorf("parseMonth: Invalid day numer: %s", buf)
+		return fmt.Errorf("month: invalid day number: %s", buf)
 	}
 
 	spec.day = day
@@ -582,7 +582,7 @@ func parseYear(in io.ByteScanner, spec *Timespec) error {
 
 	year, err := strconv.ParseInt(string(buf), 10, 0)
 	if err != nil {
-		return fmt.Errorf("parseYear: Invalid year format: %q", buf)
+		return fmt.Errorf("year: invalid year format: %q", buf)
 	}
 
 	spec.year = int(year)
@@ -624,7 +624,7 @@ func parseTime(in io.ByteScanner, spec *Timespec) error {
 		return parseMidnight(in, spec)
 	}
 
-	return fmt.Errorf("parseTime: Unexpected character %c", c)
+	return fmt.Errorf("time: unexpected character %c", c)
 }
 
 func parseClock(in io.ByteScanner, spec *Timespec) error {
@@ -644,11 +644,11 @@ func parseClock(in io.ByteScanner, spec *Timespec) error {
 
 	hours, err := strconv.Atoi(string(buf))
 	if err != nil {
-		return fmt.Errorf("parseClock: invalid number format: %s", buf)
+		return fmt.Errorf("clock: invalid number format: %s", buf)
 	}
 
 	if hours > 23 {
-		return fmt.Errorf("parseClock: invalid hours: %d", hours)
+		return fmt.Errorf("clock: invalid hours: %d", hours)
 	}
 
 	spec.hours = hours
@@ -656,7 +656,7 @@ func parseClock(in io.ByteScanner, spec *Timespec) error {
 	c = peek(in)
 
 	if c == 0 {
-		return fmt.Errorf("parseClock: Unexpected EOF")
+		return fmt.Errorf("clock: unexpected EOF")
 	}
 
 	if isdigit(c) || c == ':' {
@@ -686,7 +686,7 @@ func parseMinute(in io.ByteScanner, spec *Timespec) error {
 	}
 
 	if c != ':' && !isdigit(c) {
-		return fmt.Errorf("parseMinute: Expected ':' or digit, got '%c'", c)
+		return fmt.Errorf("minute: expected ':' or digit, got '%c'", c)
 	} else if isdigit(c) {
 		in.UnreadByte()
 	} else if c != ':' {
@@ -695,15 +695,15 @@ func parseMinute(in io.ByteScanner, spec *Timespec) error {
 
 	buf := []byte{}
 	if c, ok := expectN(2, in, &buf, isdigit); !ok {
-		return fmt.Errorf("parseMinute: Expected digit, got '%c'", c)
+		return fmt.Errorf("minute: expected digit, got '%c'", c)
 	}
 	minutes, err := strconv.Atoi(string(buf))
 	if err != nil {
-		return fmt.Errorf("parseMinute: %s", err)
+		return fmt.Errorf("minute: %s", err)
 	}
 
 	if minutes >= 60 {
-		return fmt.Errorf("parseMinute: Invalid minutes: %d", minutes)
+		return fmt.Errorf("minute: invalid minutes: %d", minutes)
 	}
 
 	spec.minutes = minutes
@@ -726,7 +726,7 @@ func parseTimeZone(in io.ByteScanner, spec *Timespec) error {
 	timezone := strings.ToUpper(string(buf))
 
 	if timezone != "UTC" {
-		return fmt.Errorf("parseTimeZone: Invalid timezone: %q", buf)
+		return fmt.Errorf("timezone: invalid timezone: %q", buf)
 	}
 
 	return nil
@@ -738,11 +738,11 @@ func parseAmPm(in io.ByteScanner, spec *Timespec) error {
 
 	c, err = in.ReadByte()
 	if err != nil {
-		return fmt.Errorf("parseAmPm: %s", err)
+		return fmt.Errorf("am_pm: %s", err)
 	}
 
 	if c != 'm' && c != 'M' {
-		return fmt.Errorf("parseAmPm: Expected 'm', got %c", c)
+		return fmt.Errorf("am_pm: expected 'm', got %c", c)
 	} else {
 		buf = append(buf, c)
 	}
@@ -757,7 +757,7 @@ func parseAmPm(in io.ByteScanner, spec *Timespec) error {
 func parseNoon(in io.ByteScanner, spec *Timespec) error {
 	s, ok := expectBytes(in, []byte("noon"))
 	if !ok {
-		return fmt.Errorf("parseNoon: Expected %q, got %q", "noon", s)
+		return fmt.Errorf("noon: expected %q, got %q", "noon", s)
 	}
 
 	spec.hours = 12
@@ -768,7 +768,7 @@ func parseNoon(in io.ByteScanner, spec *Timespec) error {
 func parseMidnight(in io.ByteScanner, spec *Timespec) error {
 	s, ok := expectBytes(in, []byte("midnight"))
 	if !ok {
-		return fmt.Errorf("parseMidnight: Expected %q, got %q", "midnight", s)
+		return fmt.Errorf("midnight: expected %q, got %q", "midnight", s)
 	}
 
 	return nil
