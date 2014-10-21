@@ -196,3 +196,13 @@ func ExampleParse() {
 	fmt.Println(spec.Resolve(now))
 	// Output: 2010-01-08 12:00:00 +0000 UTC
 }
+
+func TestTimespec_Resolve_keepsSeconds(t *testing.T) {
+	now := time.Date(2010, 1, 1, 15, 10, 23, 0, time.UTC)
+	at := &Timespec{isNow: true, increments: 1, unit: incrementDays}
+	then := time.Date(2010, 1, 2, 15, 10, 23, 0, time.UTC)
+
+	if atTime := at.Resolve(now); !atTime.Equal(then) {
+		t.Fatalf("Expected %s to equal %s", atTime, then)
+	}
+}

@@ -161,6 +161,7 @@ type Timespec struct {
 	year       int
 	hours      int
 	minutes    int
+	seconds    int
 	isNow      bool
 	isTomorrow bool
 	increments int
@@ -212,7 +213,7 @@ func (d *Timespec) Resolve(now time.Time) time.Time {
 
 	d.addincrement()
 
-	return time.Date(d.year, d.month, d.day, d.hours, d.minutes, 0, 0, time.UTC)
+	return time.Date(d.year, d.month, d.day, d.hours, d.minutes, d.seconds, 0, time.UTC)
 }
 
 // Time is a convenience function and the same as Resolve(time.Now()).
@@ -222,7 +223,7 @@ func (d *Timespec) Time() time.Time {
 
 func (d *Timespec) fromTime(t time.Time) {
 	d.year, d.month, d.day = t.Date()
-	d.hours, d.minutes = t.Hour(), t.Minute()
+	d.hours, d.minutes, d.seconds = t.Clock()
 }
 
 func (d *Timespec) isToday() bool {
