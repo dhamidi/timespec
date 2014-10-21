@@ -3,6 +3,7 @@ package timespec
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -181,4 +182,17 @@ func TestTimespec_Resolve(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
+
+func ExampleParse() {
+	now := time.Date(2010, 1, 1, 12, 0, 0, 0, time.UTC)
+	spec, err := Parse("now next week")
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	fmt.Println(spec.Resolve(now))
+	// Output: 2010-01-08 12:00:00 +0000 UTC
 }

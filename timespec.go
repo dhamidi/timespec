@@ -360,7 +360,7 @@ func skip(in io.ByteScanner, class charclass) byte {
 func peek(in io.ByteScanner) byte {
 	c, err := in.ReadByte()
 
-	if err != io.EOF {
+	if err != nil && err != io.EOF {
 		panic(err)
 	}
 
