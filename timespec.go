@@ -407,10 +407,12 @@ func expectBytes(in io.ByteScanner, s []byte) (string, bool) {
 
 	for _, expected := range s {
 		c, _ := in.ReadByte()
+
+		buf = append(buf, c)
+
 		if c != expected {
+			in.UnreadByte()
 			return string(buf), false
-		} else {
-			buf = append(buf, c)
 		}
 	}
 

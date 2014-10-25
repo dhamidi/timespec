@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -204,5 +205,14 @@ func TestTimespec_Resolve_keepsSeconds(t *testing.T) {
 
 	if atTime := at.Resolve(now); !atTime.Equal(then) {
 		t.Fatalf("Expected %s to equal %s", atTime, then)
+	}
+}
+
+func TestTimespec_Parse_errorMessage(t *testing.T) {
+	_, err := Parse("next week")
+	parseError := err.(*ParseError)
+
+	if !strings.Contains(parseError.Msg, `got "ne"`) {
+		t.Fatalf("Expected to find %#q in %#q", `got "e"`, parseError.Msg)
 	}
 }
