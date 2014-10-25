@@ -6,6 +6,25 @@ package timespec
     Package timespec provides functionality for parsing convenient
     definitions of points in time, such as "now next week".
 
+    These definitions consist of three parts: a time, a date and an
+    increment to add to the specified time. The date and increment part are
+    optional, "now" can be used to indicate the current point in time. Times
+    can be specified in hours (24-hour clock or wall clock), optionally
+    followed by minutes. Additionally "noon" is recognized as an
+    abbreviation for "12 pm" and "midnight" is an abbreviation for "12 am".
+    The following are all valid times: "now", "1 am", "14:15", "1800".
+
+    A date can either be a day of the week, such as "Tue" or "Tuesday", or a
+    month name followed by a day number and optionally a year. The strings
+    "today" and "tomorrow" are also recognized as dates, indicating the
+    obvious. The following are all valid dates: "Feb 01", "today", "Mar 02,
+    2015", "tomorrow".
+
+    Increments are useful for describing points in time relative to a
+    reference time such as "now". An increment is either "+" or the word
+    "next", followed by a number and a unit such as "month". The following
+    are all valid increments: "+ 1 year", "next week", "+ 10 minutes".
+
     The syntax of timespec implemented by this package is the one understood
     by at(1) and reproduced here for convenience:
 
@@ -159,6 +178,17 @@ func Parse(timespec string) (*Timespec, error)
 
     If an error is returned, it is of type *ParseError.
 
+    Example:
+	now := time.Date(2010, 1, 1, 12, 0, 0, 0, time.UTC)
+	spec, err := Parse("now next week")
+	
+	if err != nil {
+	    fmt.Println(err)
+	    return
+	}
+	
+	fmt.Println(spec.Resolve(now))
+	// Output: 2010-01-08 12:00:00 +0000 UTC
 func (d *Timespec) Resolve(now time.Time) time.Time
     Resolve converts a timespec to a time value, using the provided time for
     resolving "now", "today" and "tomorrow".
